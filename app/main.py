@@ -1,22 +1,29 @@
 # Uncomment this to pass the first stage
 import socket
 
+def start_server(host = '0.0.0.0', port = 4221):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind((host, port))
+        s.listen(5)
+        print(f'Server is listening on {port}... ')
 
+
+        while True:
+            conn, addr = s.accept()
+            with conn:
+                print(f'Connected by: {addr}')
+                req = conn.recv(1024).decode('utf-8')
+                print(f'Request: {req}')
+                res = "HTTP/1.1 200 OK\r\n\r\n"
+                conn.sendall(res.encode('utf-8'))
 
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!")
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
     server_socket.accept()
-    server_socket.accept()[0].sendall(b"HTTP/1.1 200 OK\r\n\r\n")
-
-    while True:
-        client_socket, address = server_socket.accept()
-        client_socket.close()
-
-
 
 
 
 if __name__ == "__main__":
-    main()
+    start_server()
