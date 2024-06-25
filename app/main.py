@@ -1,5 +1,6 @@
 # Uncomment this to pass the first stage
 import socket
+import re
 
 def parse_request(request):
     """Parse the HTTP request and extract the method and path."""
@@ -13,11 +14,20 @@ def handle_request(method, path):
     if method == 'GET':
         if path == '/':
             return 'HTTP/1.1 200 OK\r\n\r\n'
+        elif path.startswith('/echo/'):
+            # Extract the string parameter from the path
+            match = re.match(r'/echo/(.+)', path)
+            if match:
+                echoed_string = match.group(1)
+                content_length = len(echoed_string)
+                headers = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {content_length}\r\n\r\n'
+                return headers + echoed_string
+            else:
+                return 'HTTP/1.1 404 Not Found\r\n\r\n'
         else:
             return 'HTTP/1.1 404 Not Found\r\n\r\n'
     else:
         return 'HTTP/1.1 405 Method Not Allowed\r\n\r\n'
-
 
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
