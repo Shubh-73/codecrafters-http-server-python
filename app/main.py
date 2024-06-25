@@ -11,12 +11,13 @@ def parse_request(request):
 def handle_request(method, path):
     """Generate an appropriate HTTP response based on the request path."""
     if method == 'GET':
-        if path == '/index.html':
+        if path == '/':
             return 'HTTP/1.1 200 OK\r\n\r\n'
         else:
             return 'HTTP/1.1 404 Not Found\r\n\r\n'
     else:
         return 'HTTP/1.1 405 Method Not Allowed\r\n\r\n'
+
 
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
