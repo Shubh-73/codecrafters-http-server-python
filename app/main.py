@@ -1,36 +1,28 @@
 # Uncomment this to pass the first stage
 import socket
-import traceback
-
-def start_server(host = '0.0.0.0', port = 4221):
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((host, port))
-        s.listen(5)
-        print(f'Server is listening on {port}... ')
-
-
-        while True:
-            try:
-                conn, addr = s.accept()
-                with conn:
-                    print(f'Connected by: {addr}')
-                    req = conn.recv(1024).decode('utf-8')
-                    print(f'Request: {req}')
-                    res = "HTTP/1.1 200 OK\r\n\r\n"
-                    conn.sendall(res.encode('utf-8'))
-            except Exception as e:
-                print(f'Error: {e}')
-                traceback.print_exc()
-                conn.close()
-
 
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!")
+
+    # Create a TCP server socket
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
-    server_socket.accept()
+    server_socket.listen(5)
+    print("Server listening on port 4221...")
+
+    while True:
+        # Accept incoming connections
+        client_socket, addr = server_socket.accept()
+        with client_socket:
+            print(f"Connection from {addr}")
+            request = client_socket.recv(1024).decode('utf-8')
+            print(f"Received request: {request}")
+
+            # Send HTTP 200 OK response
+            response = 'HTTP/1.1 200 OK\r\n\r\n'
+            client_socket.sendall(response.encode('utf-8'))
 
 
 
 if __name__ == "__main__":
-    start_server()
+    main()
