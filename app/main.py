@@ -1,6 +1,23 @@
 # Uncomment this to pass the first stage
 import socket
 
+def parse_request(request):
+    """Parse the HTTP request and extract the method and path."""
+    lines = request.split('\r\n')
+    request_line = lines[0]
+    method, path, _ = request_line.split()
+    return method, path
+
+def handle_request(method, path):
+    """Generate an appropriate HTTP response based on the request path."""
+    if method == 'GET':
+        if path == '/index.html':
+            return 'HTTP/1.1 200 OK\r\n\r\n'
+        else:
+            return 'HTTP/1.1 404 Not Found\r\n\r\n'
+    else:
+        return 'HTTP/1.1 405 Method Not Allowed\r\n\r\n'
+
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!")
@@ -18,8 +35,8 @@ def main():
             request = client_socket.recv(1024).decode('utf-8')
             print(f"Received request: {request}")
 
-            # Send HTTP 200 OK response
-            response = 'HTTP/1.1 200 OK\r\n\r\n'
+            method, path = parse_request(request)
+            response = handle_request(method, path)
             client_socket.sendall(response.encode('utf-8'))
 
 
