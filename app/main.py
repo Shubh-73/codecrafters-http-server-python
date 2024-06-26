@@ -1,9 +1,8 @@
-# Uncomment this to pass the first stage
 import socket
 from threading import Thread
 
 
-def reply(req, code, body = "", headers={}):
+def reply(req, code, body="", headers={}):
     b_reply = b""
     match code:
         case 200:
@@ -13,31 +12,31 @@ def reply(req, code, body = "", headers={}):
         case 500:
             b_reply += b"HTTP/1.0 500 Internal Server Error\r\n"
 
-    if not "Content-Type" in headers:
+    if "Content-Type" not in headers:
         headers["Content-Type"] = "text/plain"
     if body != "":
         headers["Content-Length"] = str(len(body))
 
     for key, value in headers.items():
-        b_reply += bytes(key, "utf-8") + b": " + bytes(val, "utf-8") + b"\r\n"
+        b_reply += bytes(key, "utf-8") + b": " + bytes(value, "utf-8") + b"\r\n"
     b_reply += b"\r\n" + bytes(body, "utf-8")
     return b_reply
 
-def parse_request(bytes):
+
+def parse_request(bytes_data):
     """Parse the HTTP request and extract the method, path, and headers."""
-    output = {"method": "", "path": "", "headers": {}, "body": bytes}
-    lines = bytes.decode("utf-8").split("\r\n")
+    output = {"method": "", "path": "", "headers": {}, "body": ""}
+    lines = bytes_data.decode("utf-8").split("\r\n")
 
     if len(lines) < 3:
         return None
     reqLine = lines[0].split(" ")
-    if (not reqLine[0]) or reqLine[0] not in ["GET", "POST", "PUT", "DELETE"]:
+    if not reqLine[0] or reqLine[0] not in ["GET", "POST", "PUT", "DELETE"]:
         return None
-    if (not reqLine[1]) or reqLine[1][0] != "/":
+    if not reqLine[1] or reqLine[1][0] != "/":
         return None
     output["method"] = reqLine[0]
     output["path"] = reqLine[1]
-
 
     lines = lines[1:]
     c = 0
@@ -47,8 +46,10 @@ def parse_request(bytes):
         headline = line.split(":")
         output["headers"][headline[0]] = headline[1].lstrip()
         c += 1
-    output["body"] = lines[c + 1]
+    if len(lines) > c + 1:
+        output["body"] = lines[c + 1]
     return output
+
 
 def handle_request(conn, req):
     """Generate an appropriate HTTP response based on the request path."""
@@ -63,18 +64,19 @@ def handle_request(conn, req):
 
 
 def handle_client(conn):
-    byte = []
+    byte_data = []
 
     try:
-        while(byte := conn.recv(1024)) != b"":
-            parsed_req = parse_request(byte)
+        while (byte_data := conn.recv(1024)) != b"":
+            parsed_req = parse_request(byte_data)
             if parsed_req is None:
                 conn.send(str.encode("HTTP/1.1 500 No\r\n\r\n"))
                 return conn.close()
             conn.send(handle_request(conn, parsed_req))
             return conn.close()
     except Exception as e:
-        print("Connection closed unexpectedly")
+        print(f"Connection closed unexpectedly: {e}")
+        conn.close()
 
 
 def main():
@@ -85,12 +87,11 @@ def main():
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
     threads = []
 
-    while 1:
+    while True:
         conn, addr = server_socket.accept()
         t = Thread(target=handle_client, args=(conn,))
         threads.append(t)
-        t.run()
-
+        t.start()  # Correctly start the thread
 
 
 if __name__ == "__main__":
