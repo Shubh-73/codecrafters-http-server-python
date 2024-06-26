@@ -3,13 +3,18 @@ import socket
 import re
 
 def parse_request(request):
-    """Parse the HTTP request and extract the method and path."""
+    """Parse the HTTP request and extract the method, path, and headers."""
     lines = request.split('\r\n')
     request_line = lines[0]
     method, path, _ = request_line.split()
-    return method, path
+    headers = {}
+    for line in lines[1:]:
+        if ': ' in line:
+            key, value = line.split(': ', 1)
+            headers[key] = value
+    return method, path, headers
 
-def handle_request(method, path):
+def handle_request(method, path, headers):
     """Generate an appropriate HTTP response based on the request path."""
     if method == 'GET':
         if path == '/':
