@@ -74,7 +74,7 @@ def handle_client(conn):
             conn.send(handle_request(conn, parsed_req))
             return conn.close()
     except Exception as e:
-        print("handle_client_error", e)
+        print("Connection closed unexpectedly")
 
 
 def main():
