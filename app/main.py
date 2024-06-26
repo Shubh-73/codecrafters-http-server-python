@@ -6,11 +6,11 @@ def reply(req, code, body="", headers={}):
     b_reply = b""
     match code:
         case 200:
-            b_reply += b"HTTP/1.0 200 OK\r\n"
+            b_reply += b"HTTP/1.1 200 OK\r\n"
         case 404:
-            b_reply += b"HTTP/1.0 404 Not Found\r\n"
+            b_reply += b"HTTP/1.1 404 Not Found\r\n"
         case 500:
-            b_reply += b"HTTP/1.0 500 Internal Server Error\r\n"
+            b_reply += b"HTTP/1.1 500 Internal Server Error\r\n"
 
     if "Content-Type" not in headers:
         headers["Content-Type"] = "text/plain"
@@ -18,7 +18,7 @@ def reply(req, code, body="", headers={}):
         headers["Content-Length"] = str(len(body))
 
     for key, value in headers.items():
-        b_reply += bytes(key, "utf-8") + b": " + bytes(value, "utf-8") + b"\r\n"
+        b_reply += bytes(f"{key}: {value}\r\n", "utf-8")
     b_reply += b"\r\n" + bytes(body, "utf-8")
     return b_reply
 
