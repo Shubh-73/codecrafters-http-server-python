@@ -24,10 +24,16 @@ def handle_request(method, path):
                 return headers + echoed_string
             else:
                 return 'HTTP/1.1 404 Not Found\r\n\r\n'
+        elif path == '/user-agent':
+            user_agent = headers.get('User-Agent', '')
+            content_length = len(user_agent)
+            response_headers = f'HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {content_length}\r\n\r\n'
+            return response_headers + user_agent
         else:
             return 'HTTP/1.1 404 Not Found\r\n\r\n'
     else:
         return 'HTTP/1.1 405 Method Not Allowed\r\n\r\n'
+
 
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
