@@ -8,6 +8,8 @@ def reply(req, code, body="", headers={}):
     match code:
         case 200:
             b_reply += b"HTTP/1.1 200 OK\r\n"
+        case 201:
+            b_reply += b"HTTP/1.1 201 Created\r\n"
         case 404:
             b_reply += b"HTTP/1.1 404 Not Found\r\n"
         case 500:
