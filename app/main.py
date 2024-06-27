@@ -103,14 +103,15 @@ def main():
     global directory_path
 
 
-    if len(sys.argv) != 3 or sys.argv[1] !="--directory":
-        print("Usage: ./your_server.sh --directory <directory_path>")
-        sys.exit(1)
-
-    directory_path = sys.argv[2]
+    if len(sys.argv) == 3 and sys.argv[1] == "--directory":
+        directory_path =sys.argv[2]
 
     if not os.path.isdir(directory_path):
-        print("Directory doesn't exist!")
+        print(f"The directory {directory_path} does not exist!")
+        sys.exit(1)
+
+    if not directory_path:
+        print(f"The directory {directory_path} does not exist!")
         sys.exit(1)
 
     print(f"serving files from directory: {directory_path}")
