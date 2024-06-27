@@ -3,7 +3,8 @@ from threading import Thread
 import os
 import sys
 
-directory_path  = ""
+directory_path = ""
+
 
 def reply(req, code, body="", headers={}):
     b_reply = b""
@@ -102,13 +103,12 @@ def main():
 
     global directory_path
 
-
     if len(sys.argv) == 3 and sys.argv[1] == "--directory":
-        directory_path =sys.argv[2]
+        directory_path = sys.argv[2]
 
-    if not os.path.isdir(directory_path):
-        print(f"The directory {directory_path} does not exist!")
-        sys.exit(1)
+        if not os.path.isdir(directory_path):
+            print(f"The directory {directory_path} does not exist!")
+            sys.exit(1)
 
     if not directory_path:
         print(f"The directory {directory_path} does not exist!")
