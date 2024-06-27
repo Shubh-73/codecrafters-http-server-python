@@ -5,15 +5,14 @@ import os
 
 def reply(req, code, body="", headers={}):
     b_reply = b""
-    match code:
-        case 200:
-            b_reply += b"HTTP/1.1 200 OK\r\n"
-        case 201:
-            b_reply += b"HTTP/1.1 201 Created\r\n"
-        case 404:
-            b_reply += b"HTTP/1.1 404 Not Found\r\n"
-        case 500:
-            b_reply += b"HTTP/1.1 500 Internal Server Error\r\n"
+    if code == 200:
+        b_reply += b"HTTP/1.1 200 OK\r\n"
+    elif code == 201:
+        b_reply += b"HTTP/1.1 201 Created\r\n"
+    elif code == 404:
+        b_reply += b"HTTP/1.1 404 Not Found\r\n"
+    elif code == 500:
+        b_reply += b"HTTP/1.1 500 Internal Server Error\r\n"
 
     if "Content-Type" not in headers:
         headers["Content-Type"] = "text/plain"
