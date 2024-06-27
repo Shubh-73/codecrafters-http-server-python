@@ -3,6 +3,8 @@ from threading import Thread
 import os
 import sys
 
+
+# Define a global variable to hold the directory path
 directory_path = ""
 
 
@@ -71,53 +73,51 @@ def handle_request(conn, req):
         try:
             with open(file_path, "r") as f:
                 body = f.read()
-            header = {
+            headers = {
                 "Content-Type": "application/octet-stream",
-                "Content-Length": str(len(body)),
+                "Content-Length": str(len(body))
             }
-            return reply(req, 200, body, header)
+            return reply(req, 200, body, headers)
         except FileNotFoundError:
-            print(f"File {file_path} not found")
-            return(req, 404)
-        except Exception as e:
-            print(f"Error reading file {file_path} : {e}")
+            print(f"File not found: {file_path}")
             return reply(req, 404)
+        except Exception as e:
+            print(f"Error reading file {file_path}: {e}")
+            return reply(req, 500)
     return reply(req, 404)
 
 
 def handle_client(conn):
     try:
         byte_data = conn.recv(1024)
-        if byte_data :
+        if byte_data:
             parsed_req = parse_request(byte_data)
             if parsed_req is None:
                 conn.sendall(reply(None, 500))
             else:
                 conn.sendall(handle_request(conn, parsed_req))
     except Exception as e:
-        print(f"Error reading client {e}")
+        print(f"Connection closed unexpectedly: {e}")
     finally:
         conn.close()
 
 
 def main():
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    print("Logs from your program will appear here!")
-
     global directory_path
 
+    # Parse the --directory flag
     if len(sys.argv) == 3 and sys.argv[1] == "--directory":
         directory_path = sys.argv[2]
 
         if not os.path.isdir(directory_path):
-            print(f"Error: {directory_path} is not a directory")
+            print(f"Error: {directory_path} is not a valid directory.")
             sys.exit(1)
 
     if not directory_path:
         print("Usage: ./your_server.sh --directory <directory_path>")
         sys.exit(1)
 
-    print(f"serving files from directory: {directory_path}")
+    print(f"Serving files from directory: {directory_path}")
 
     # Create a TCP server socket
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
