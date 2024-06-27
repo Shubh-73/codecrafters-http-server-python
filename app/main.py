@@ -67,17 +67,17 @@ def handle_request(conn, req):
     if req["path"].startswith("/files"):
         filename = req["path"][7:]
         file_path = os.path.join(directory_path, filename)
-        if os.path.exists(file_path) and os.path.isfile(file_path):
+
+        try:
             with open(file_path, "rb") as f:
-                f_content = f.read()
+                body = f.read()
             headers = {
                 "Content-Type": "application/octet-stream",
-                "Content-Length": str(len(f_content)),
+                "Content-Length": str(len(body)),
             }
-            return reply(req, 200, f_content.decode("utf-8"), headers)
-        else:
+            return reply(req, 200, body, headers)
+        except Exception as e:
             return reply(req, 404)
-
     return reply(req, 404)
 
 
@@ -107,11 +107,11 @@ def main():
         directory_path = sys.argv[2]
 
         if not os.path.isdir(directory_path):
-            print(f"The directory {directory_path} does not exist!")
+            print(f"Error: {directory_path} is not a directory")
             sys.exit(1)
 
     if not directory_path:
-        print(f"The directory {directory_path} does not exist!")
+        print("Usage: ./your_server.sh --directory <directory_path>")
         sys.exit(1)
 
     print(f"serving files from directory: {directory_path}")
