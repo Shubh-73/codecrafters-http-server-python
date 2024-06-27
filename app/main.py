@@ -1,6 +1,7 @@
 import socket
 import threading
 import sys
+import os
 
 def reply(req, code, body="", headers={}):
     b_reply = b""
