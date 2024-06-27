@@ -1,6 +1,9 @@
 import socket
 from threading import Thread
+import os
+import sys
 
+directory_path  = ""
 
 def reply(req, code, body="", headers={}):
     b_reply = b""
@@ -60,6 +63,20 @@ def handle_request(conn, req):
     if req["path"] == "/user-agent":
         ua = req["headers"]["User-Agent"]
         return reply(req, 200, ua)
+    if req["path"].startswith("/files"):
+        filename = req["path"][7:]
+        file_path = os.path.join(directory_path, filename)
+        if os.path.exists(file_path) and os.path.isfile(file_path):
+            with open(file_path, "rb") as f:
+                f_content = f.read()
+            headers = {
+                "Content-Type": "application/octet-stream",
+                "Content-Length": str(len(f_content)),
+            }
+            return reply(req, 200, f_content.decode("utf-8"), headers)
+        else:
+            return reply(req, 404)
+
     return reply(req, 404)
 
 
@@ -82,6 +99,21 @@ def handle_client(conn):
 def main():
     # You can use print statements as follows for debugging, they'll be visible when running tests.
     print("Logs from your program will appear here!")
+
+    global directory_path
+
+
+    if len(sys.argv) != 3 or sys.argv[1] !="--directory":
+        print("Usage: ./your_server.sh --directory <directory_path>")
+        sys.exit(1)
+
+    directory_path = sys.argv[2]
+
+    if not os.path.isdir(directory_path):
+        print("Directory doesn't exist!")
+        sys.exit(1)
+
+    print(f"serving files from directory: {directory_path}")
 
     # Create a TCP server socket
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
