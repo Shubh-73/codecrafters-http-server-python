@@ -25,7 +25,7 @@ def reply(req, code, body="", headers={}):
 
 def parse_request(request: str):
     """Parse the HTTP request and extract the method, path, and headers."""
-    header_dict = {}
+    header_dict = {"headers": {}}
     headers = request.split("\r\n")
     request_line = headers[0].split()
 
@@ -38,57 +38,54 @@ def parse_request(request: str):
             break
         else:
             key, value = header.split(":", 1)
-            header_dict[key] = value.strip()
+            header_dict["headers"][key.strip()] = value.strip()
     header_dict["data"] = headers[-1].strip()
     return header_dict
 
-
-
-
 def handle_client(client):
-    request = client.recv(1024).decode("utf-8")
-    parsed_request = parse_request(request)
+    try:
+        request = client.recv(1024).decode("utf-8")
+        parsed_request = parse_request(request)
 
-    if len(sys.argv) > 1 and sys.argv[1] == "--directory":
-        directory = sys.argv[2]
+        if len(sys.argv) > 1 and sys.argv[1] == "--directory":
+            directory = sys.argv[2]
 
-    modified_path = parsed_request["path"].split("/", 2)
+        modified_path = parsed_request["path"].split("/", 2)
 
-    if modified_path[1] == "echo":
-        client.sendall(
-            f"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {len(modified_path[2])}\r\n\r\n{modified_path[2]}".encode("utf-8")
+        if modified_path[1] == "echo":
+            client.sendall(
+                f"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {len(modified_path[2])}\r\n\r\n{modified_path[2]}".encode("utf-8")
+            )
+        elif modified_path[1] == "files":
+            filename = modified_path[2]
+            filepath = os.path.join(directory, filename)
 
-
-        )
-
-    elif modified_path[1] == "files":
-        filename = modified_path[2]
-        filepath = os.path.join(directory, filename)
-
-        if parsed_request["method"] == "GET":
-            if os.path.exists(filepath):
-                with open(filepath, "r") as f:
-                    content = f.read()
-                client.sendall(
-                    f"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {len(content)}\r\n\r\n{content}".encode("utf-8")
-                )
-            else:
-                client.sendall(b"HTTP/1.1 404 Not Found\r\n\r\n")
-        elif parsed_request["method"] == "POST":
-            with open(filepath, "w") as f:
-                f.write(parsed_request["data"])
-            client.sendall(b"HTTP/1.1 201 Created\r\n\r\n")
-    elif parsed_request["path"] == "/":
-        client.sendall(b"HTTP/1.1 200 OK\r\n\r\n")
-
-    elif parsed_request["path"] == "/user-agent":
-        user_agent = parsed_request["headers"]["User-Agent"].strip()
-        client.sendall(
-            f"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {len(user_agent)}\r\n\r\n{user_agent}".encode("utf-8")
-        )
-    else:
-        client.sendall(b"HTTP/1.1 404 Not Found\r\n\r\n")
-
+            if parsed_request["method"] == "GET":
+                if os.path.exists(filepath):
+                    with open(filepath, "r") as f:
+                        content = f.read()
+                    client.sendall(
+                        f"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {len(content)}\r\n\r\n{content}".encode("utf-8")
+                    )
+                else:
+                    client.sendall(b"HTTP/1.1 404 Not Found\r\n\r\n")
+            elif parsed_request["method"] == "POST":
+                with open(filepath, "w") as f:
+                    f.write(parsed_request["data"])
+                client.sendall(b"HTTP/1.1 201 Created\r\n\r\n")
+        elif parsed_request["path"] == "/":
+            client.sendall(b"HTTP/1.1 200 OK\r\n\r\n")
+        elif parsed_request["path"] == "/user-agent":
+            user_agent = parsed_request["headers"].get("User-Agent", "").strip()
+            client.sendall(
+                f"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {len(user_agent)}\r\n\r\n{user_agent}".encode("utf-8")
+            )
+        else:
+            client.sendall(b"HTTP/1.1 404 Not Found\r\n\r\n")
+    except Exception as e:
+        print(f"Exception handling request: {e}")
+    finally:
+        client.close()
 
 def main():
     server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
@@ -96,7 +93,6 @@ def main():
         client, address = server_socket.accept()
         thread = threading.Thread(target=handle_client, args=(client,))
         thread.start()
-
 
 if __name__ == "__main__":
     main()
