@@ -71,32 +71,32 @@ def handle_request(conn, req):
         try:
             with open(file_path, "r") as f:
                 body = f.read()
-            headers = {
+            header = {
                 "Content-Type": "application/octet-stream",
                 "Content-Length": str(len(body)),
             }
-            return reply(req, 200, body, headers)
+            return reply(req, 200, body, header)
         except FileNotFoundError:
             print(f"File {file_path} not found")
             return(req, 404)
         except Exception as e:
+            print(f"Error reading file {file_path} : {e}")
             return reply(req, 404)
     return reply(req, 404)
 
 
 def handle_client(conn):
-    byte_data = []
-
     try:
-        while (byte_data := conn.recv(1024)) != b"":
+        byte_data = conn.recv(1024)
+        if byte_data :
             parsed_req = parse_request(byte_data)
             if parsed_req is None:
-                conn.send(str.encode("HTTP/1.1 500 No\r\n\r\n"))
-                return conn.close()
-            conn.send(handle_request(conn, parsed_req))
-            return conn.close()
+                conn.sendall(reply(None, 500))
+            else:
+                conn.sendall(handle_request(conn, parsed_req))
     except Exception as e:
-        print(f"Connection closed unexpectedly: {e}")
+        print(f"Error reading client {e}")
+    finally:
         conn.close()
 
 
