@@ -1,173 +1,102 @@
-import asyncio
-
-import argparse
-
-import re
-
+import socket
+import threading
 import sys
-
-from asyncio.streams import StreamReader, StreamWriter
-
-from pathlib import Path
-
-GLOBALS = {}
-
-def stderr(*args, **kwargs):
-
-    print(*args, **kwargs, file=sys.stderr)
-
-def parse_request(content: bytes) -> tuple[str, str, dict[str, str], str]:
-
-    first_line, *tail = content.split(b"\r\n")
-
-    method, path, _ = first_line.split(b" ")
-
-    headers: dict[str, str] = {}
-
-    while (line := tail.pop(0)) != b"":
-
-        key, value = line.split(b": ")
-
-        headers[key.decode()] = value.decode()
-
-    return method.decode(), path.decode(), headers, b"".join(tail).decode()
-
-def make_response(
-
-        status: int,
-
-        headers: dict[str, str] | None = None,
-
-        body: str = "",
-
-) -> bytes:
-
-    headers = headers or {}
-
-    msg = {
-
-        200: "OK",
-
-        201: "CREATED",
-
-        404: "NOT FOUND",
-
-    }
-
-    return b"\r\n".join(
-
-        map(
-
-            lambda i: i.encode(),
-
-            [
-
-                f"HTTP/1.1 {status} {msg[status]}",
-
-                *[f"{k}: {v}" for k, v in headers.items()],
-
-                f"Content-Length: {len(body)}",
-
-                "",
-
-                body,
-
-            ],
-
-        ),
-
-    )
-
-async def handle_connection(reader: StreamReader, writer: StreamWriter) -> None:
-
-    _, path, headers, _ = parse_request(await reader.read(2**16))
-
-    method, path, headers, body = parse_request(await reader.read(2**16))
-
-    if re.fullmatch(r"/", path):
-
-        writer.write(b"HTTP/1.1 200 OK\r\n\r\n")
-
-        stderr(f"[OUT] /")
-
-    elif re.fullmatch(r"/user-agent", path):
-
-        ua = headers["User-Agent"]
-
-        writer.write(make_response(200, {"Content-Type": "text/plain"}, ua))
-
-        stderr(f"[OUT] user-agent {ua}")
-
-    elif match := re.fullmatch(r"/echo/(.+)", path):
-
-        msg = match.group(1)
-
-        writer.write(make_response(200, {"Content-Type": "text/plain"}, msg))
-
-        stderr(f"[OUT] echo {msg}")
-
-    elif match := re.fullmatch(r"/files/(.+)", path):
-
-        p = Path(GLOBALS["DIR"]) / match.group(1)
-
-        if p.is_file():
-
-        if method.upper() == "GET" and p.is_file():
-
-            writer.write(
-
-                make_response(
-
-                    200,
-
-                    {"Content-Type": "application/octet-stream"},
-
-                    p.read_text(),
-
-                )
-
-            )
-
-        elif method.upper() == "POST":
-
-            p.write_bytes(body.encode())
-
-            writer.write(make_response(201))
-
+import os
+
+def reply(req, code, body="", headers={}):
+    b_reply = b""
+    match code:
+        case 200:
+            b_reply += b"HTTP/1.1 200 OK\r\n"
+        case 404:
+            b_reply += b"HTTP/1.1 404 Not Found\r\n"
+        case 500:
+            b_reply += b"HTTP/1.1 500 Internal Server Error\r\n"
+
+    if "Content-Type" not in headers:
+        headers["Content-Type"] = "text/plain"
+    if body != "":
+        headers["Content-Length"] = str(len(body))
+
+    for key, value in headers.items():
+        b_reply += bytes(f"{key}: {value}\r\n", "utf-8")
+    b_reply += b"\r\n" + bytes(body, "utf-8")
+    return b_reply
+
+def parse_request(request: str):
+    """Parse the HTTP request and extract the method, path, and headers."""
+    header_dict = {}
+    headers = request.split("\r\n")
+    request_line = headers[0].split()
+
+    header_dict["method"] = request_line[0]
+    header_dict["path"] = request_line[1]
+    header_dict["protocol"] = request_line[2]
+
+    for header in headers[1:]:
+        if header == "":
+            break
         else:
+            key, value = header.split(":", 1)
+            header_dict[key] = value.strip()
+    header_dict["data"] = headers[-1].strip()
+    return header_dict
 
-            writer.write(make_response(404))
 
-        stderr(f"[OUT] file {path}")
 
+
+def handle_client(client):
+    request = client.recv(1024).decode("utf-8")
+    parsed_request = parse_request(request)
+
+    if len(sys.argv) > 1 and sys.argv[1] == "--directory":
+        directory = sys.argv[2]
+
+    modified_path = parsed_request["path"].split("/", 2)
+
+    if modified_path[1] == "echo":
+        client.sendall(
+            f"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {len(modified_path[2])}\r\n\r\n{modified_path[2]}".encode("utf-8")
+
+
+        )
+
+    elif modified_path[1] == "files":
+        filename = modified_path[2]
+        filepath = os.path.join(directory, filename)
+
+        if parsed_request["method"] == "GET":
+            if os.path.exists(filepath):
+                with open(filepath, "r") as f:
+                    content = f.read()
+                client.sendall(
+                    f"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nContent-Length: {len(content)}\r\n\r\n{content}".encode("utf-8")
+                )
+            else:
+                client.sendall(b"HTTP/1.1 404 Not Found\r\n\r\n")
+        elif parsed_request["method"] == "POST":
+            with open(filepath, "w") as f:
+                f.write(parsed_request["data"])
+            client.sendall(b"HTTP/1.1 201 Created\r\n\r\n")
+    elif parsed_request["path"] == "/":
+        client.sendall(b"HTTP/1.1 200 OK\r\n\r\n")
+
+    elif parsed_request["path"] == "/user-agent":
+        user_agent = parsed_request["headers"]["User-Agent"].strip()
+        client.sendall(
+            f"HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: {len(user_agent)}\r\n\r\n{user_agent}".encode("utf-8")
+        )
     else:
+        client.sendall(b"HTTP/1.1 404 Not Found\r\n\r\n")
 
-        writer.write(make_response(404, {}, ""))
 
-        stderr(f"[OUT] 404")
+def main():
+    server_socket = socket.create_server(("localhost", 4221), reuse_port=True)
+    while True:
+        client, address = server_socket.accept()
+        thread = threading.Thread(target=handle_client, args=(client,))
+        thread.start()
 
-    writer.close()
-
-async def main():
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--directory", default=".")
-
-    args = parser.parse_args()
-
-    GLOBALS["DIR"] = args.directory
-
-    server = await asyncio.start_server(handle_connection, "localhost", 4221)
-
-    async with server:
-
-        stderr("Starting server...")
-
-        stderr(f"--directory {GLOBALS['DIR']}")
-
-        await server.serve_forever()
 
 if __name__ == "__main__":
-
-    asyncio.run(main())
+    main()
