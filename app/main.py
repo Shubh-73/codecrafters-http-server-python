@@ -3,11 +3,6 @@ from threading import Thread
 import os
 import sys
 
-
-# Define a global variable to hold the directory path
-directory_path = ""
-
-
 def reply(req, code, body="", headers={}):
     b_reply = b""
     match code:
@@ -27,7 +22,6 @@ def reply(req, code, body="", headers={}):
         b_reply += bytes(f"{key}: {value}\r\n", "utf-8")
     b_reply += b"\r\n" + bytes(body, "utf-8")
     return b_reply
-
 
 def parse_request(bytes_data):
     """Parse the HTTP request and extract the method, path, and headers."""
@@ -56,8 +50,7 @@ def parse_request(bytes_data):
         output["body"] = lines[c + 1]
     return output
 
-
-def handle_request(conn, req):
+def handle_request(conn, req, directory_path):
     """Generate an appropriate HTTP response based on the request path."""
     if req["path"] == "/":
         return reply(req, 200)
@@ -86,8 +79,7 @@ def handle_request(conn, req):
             return reply(req, 500)
     return reply(req, 404)
 
-
-def handle_client(conn):
+def handle_client(conn, directory_path):
     try:
         byte_data = conn.recv(1024)
         if byte_data:
@@ -95,26 +87,22 @@ def handle_client(conn):
             if parsed_req is None:
                 conn.sendall(reply(None, 500))
             else:
-                conn.sendall(handle_request(conn, parsed_req))
+                conn.sendall(handle_request(conn, parsed_req, directory_path))
     except Exception as e:
         print(f"Connection closed unexpectedly: {e}")
     finally:
         conn.close()
 
-
 def main():
-    global directory_path
-
     # Parse the --directory flag
-    if len(sys.argv) == 3 and sys.argv[1] == "--directory":
-        directory_path = sys.argv[2]
-
-        if not os.path.isdir(directory_path):
-            print(f"Error: {directory_path} is not a valid directory.")
-            sys.exit(1)
-
-    if not directory_path:
+    if len(sys.argv) != 3 or sys.argv[1] != "--directory":
         print("Usage: ./your_server.sh --directory <directory_path>")
+        sys.exit(1)
+
+    directory_path = sys.argv[2]
+
+    if not os.path.isdir(directory_path):
+        print(f"Error: {directory_path} is not a valid directory.")
         sys.exit(1)
 
     print(f"Serving files from directory: {directory_path}")
@@ -125,10 +113,9 @@ def main():
 
     while True:
         conn, addr = server_socket.accept()
-        t = Thread(target=handle_client, args=(conn,))
+        t = Thread(target=handle_client, args=(conn, directory_path))
         threads.append(t)
-        t.start()  # Correctly start the thread
-
+        t.start()
 
 if __name__ == "__main__":
     main()
