@@ -69,13 +69,16 @@ def handle_request(conn, req):
         file_path = os.path.join(directory_path, filename)
 
         try:
-            with open(file_path, "rb") as f:
+            with open(file_path, "r") as f:
                 body = f.read()
             headers = {
                 "Content-Type": "application/octet-stream",
                 "Content-Length": str(len(body)),
             }
             return reply(req, 200, body, headers)
+        except FileNotFoundError:
+            print(f"File {file_path} not found")
+            return(req, 404)
         except Exception as e:
             return reply(req, 404)
     return reply(req, 404)
